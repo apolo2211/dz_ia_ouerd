@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: dz-ia-ouerd
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT web.server:app
+    envVars:
+      - key: PAYPAL_CLIENT_ID
+        sync: false # Tu devras la coller dans le dashboard Render
+      - key: PAYPAL_SECRET
+        sync: false # Tu devras la coller dans le dashboard Render

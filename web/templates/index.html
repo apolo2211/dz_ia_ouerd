@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DZ_IA_OUERD - Neural Control Interface v2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Variables et reset améliorés */
+        :root { 
+            --neon: #00ffcc;
+            --neon-glow: 0 0 10px rgba(0, 255, 204, 0.7);
+            --neon-blue: #00aaff;
+            --dark-bg: #0a0a0a;
+            --grid-color: rgba(0, 255, 204, 0.1);
+            --success: #00ff00;
+            --warning: #ffaa00;
+            --danger: #ff3366;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body, html { 
+            width: 100%; 
+            height: 100%; 
+            background: var(--dark-bg); 
+            overflow: hidden; 
+            font-family: 'Share Tech Mono', monospace; 
+        }
+
+        /* Canvas principal */
+        #canvas-hologram {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            filter: blur(0.5px) brightness(1.1);
+        }
+
+        /* Overlay avec effet de scanlines */
+        .ui-overlay {
+            position: relative;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            pointer-events: none;
+            padding: 20px;
+        }
+
+        .ui-overlay::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,255,204,0.03) 1px, transparent 2px);
+            pointer-events: none;
+            z-index: 101;
+        }
+
+        .ui-overlay::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, transparent 0%, rgba(0,0,0,0.7) 100%);
+            pointer-events: none;
+            z-index: 101;
+        }
+
+        /* Carte principale améliorée */
+        .card {
+            background: rgba(5, 20, 20, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--neon);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 204, 0.3),
+                        inset 0 0 20px rgba(0, 255, 204, 0.2);
+            width: 480px;
+            max-width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            pointer-events: auto;
+            position: relative;
+            animation: cardPulse 3s infinite ease-in-out;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon) rgba(0,0,0,0.3);
+        }
+
+        .card::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .card::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+
+        .card::-webkit-scrollbar-thumb {
+            background: var(--neon);
+            border-radius: 3px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 80px rgba(0, 255, 204, 0.5),
+                        inset 0 0 30px rgba(0, 255, 204, 0.3);
+        }
+
+        @keyframes cardPulse {
+            0% { box-shadow: 0 0 50px rgba(0, 255, 204, 0.3), inset 0 0 20px rgba(0, 255, 204, 0.2); }
+            50% { box-shadow: 0 0 70px rgba(0, 255, 204, 0.4), inset 0 0 30px rgba(0, 255, 204, 0.3); }
+            100% { box-shadow: 0 0 50px rgba(0, 255, 204, 0.3), inset 0 0 20px rgba(0, 255, 204, 0.2); }
+        }
+
+        /* Header avec effet glitch */
+        .glitch {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+            text-shadow: 0.05em 0 0 rgba(255,0,0,0.75),
+                        -0.05em -0.025em 0 rgba(0,255,255,0.75);
+            animation: glitch 6s infinite;
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch::before {
+            animation: glitch-top 1s infinite linear alternate-reverse;
+            clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
+        }
+
+        .glitch::after {
+            animation: glitch-bottom 1.5s infinite linear alternate-reverse;
+            clip-path: polygon(0 67%, 100% 67%, 100% 100%, 0 100%);
+        }
+
+        .version {
+            color: var(--neon);
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+
+        .loc {
+            color: #fff;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .loc i {
+            color: var(--neon);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Panneau de statistiques */
+        .stats-panel {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .stat-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,255,204,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .stat-title {
+            color: #aaa;
+            font-size: 0.7rem;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: var(--neon);
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        .stat-trend {
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+
+        /* DASHBOARD CONTROL - Version améliorée */
+        .dashboard-panel {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid rgba(0,255,204,0.2);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,255,204,0.2);
+        }
+
+        .dashboard-header h3 {
+            color: #00ffcc;
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: rgba(0,255,204,0.1);
+            border: 1px solid var(--neon);
+            color: var(--neon);
+        }
+
+        .dashboard-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .core-btn {
+            background: transparent;
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .core-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(0,255,204,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .core-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .core-btn:hover {
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 15px #00ffcc;
+            transform: scale(1.02);
+        }
+
+        .core-btn:active {
+            transform: scale(0.98);
+        }
+
+        .core-btn i {
+            font-size: 1rem;
+            z-index: 1;
+        }
+
+        /* Console d'activité */
+        .activity-console {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(0,255,204,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.7rem;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .console-line {
+            color: #aaa;
+            margin: 3px 0;
+            border-left: 2px solid var(--neon);
+            padding-left: 8px;
+            animation: fadeIn 0.5s;
+        }
+
+        .console-line.new {
+            color: var(--neon);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Notifications */
+        .notification-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .notification {
+            background: rgba(0,20,20,0.9);
+            border-left: 4px solid var(--neon);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            color: #fff;
+            font-size: 0.8rem;
+            transform: translateX(400px);
+            animation: slideIn 0.3s forwards;
+            pointer-events: auto;
+            border: 1px solid rgba(0,255,204,0.3);
+            box-shadow: 0 0 20px rgba(0,255,204,0.2);
+        }
+
+        @keyframes slideIn {
+            to { transform: translateX(0); }
+        }
+
+        .notification.success { border-left-color: var(--success); }
+        .notification.warning { border-left-color: var(--warning); }
+        .notification.danger { border-left-color: var(--danger); }
+
+        /* Panneau PayPal */
+        #paypal-button-container {
+            margin: 15px 0;
+            min-height: 120px;
+        }
+
+        /* Footer */
+        .footer-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,255,204,0.2);
+            border-radius: 8px;
+            font-size: 0.7rem;
+        }
+
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            transition: all 0.3s ease;
+            font-size: 0.7rem;
+        }
+
+        .contact-item i {
+            color: var(--neon);
+            width: 16px;
+        }
+
+        .contact-item:hover {
+            color: var(--neon);
+            transform: translateX(5px);
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0,255,204,0.2);
+        }
+
+        .social-link {
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            color: var(--neon);
+            transform: scale(1.2);
+            text-shadow: 0 0 10px var(--neon);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .card {
+                width: 100%;
+                padding: 20px;
+            }
+            
+            .glitch {
+                font-size: 1.3rem;
+            }
+            
+            .dashboard-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Zone de notifications -->
+    <div class="notification-area" id="notificationArea"></div>
+
+    <canvas id="canvas-hologram"></canvas>
+
+    <div class="ui-overlay">
+        <div class="card">
+            <h1 class="glitch" data-text="DZ_IA_OUERD">DZ_IA_OUERD</h1>
+            <div class="version">NEURAL INTERFACE v2.0 - BETA</div>
+            
+            <div class="loc">
+                <i class="fas fa-map-marker-alt"></i>
+                KSAR EL BOUKHARI, ALGERIA
+                <i class="fas fa-satellite"></i>
+            </div>
+
+            <!-- STATISTIQUES EN TEMPS RÉEL -->
+            <div class="stats-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #aaa;">SYSTEM METRICS</span>
+                    <span style="color: var(--neon); font-size: 0.6rem;" id="lastUpdate">LIVE</span>
+                </div>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-title">CLIENTS</div>
+                        <div class="stat-value" id="clientCount">1,247</div>
+                        <span class="stat-trend trend-up">↑ 12%</span>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">REVENUS</div>
+                        <div class="stat-value" id="revenue">$45.2K</div>
+                        <span class="stat-trend trend-up">↑ 8%</span>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">AGENTS</div>
+                        <div class="stat-value" id="agentCount">7/7</div>
+                        <span class="stat-trend">online</span>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">ALERTS</div>
+                        <div class="stat-value" id="alertCount">2</div>
+                        <span class="stat-trend trend-down">-1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD CONTROL PANEL -->
+            <div class="dashboard-panel">
+                <div class="dashboard-header">
+                    <h3>🔧 CONTROL PANEL</h3>
+                    <span class="status-badge" id="systemStatus">SYSTEM READY</span>
+                </div>
+
+                <div class="dashboard-buttons">
+                    <button class="core-btn" onclick="startAgent()" id="btnStartAgent">
+                        <i class="fas fa-robot"></i>
+                        START AGENT
+                    </button>
+                    <button class="core-btn" onclick="openClients()" id="btnClients">
+                        <i class="fas fa-users"></i>
+                        CLIENT STATS
+                    </button>
+                    <button class="core-btn" onclick="openMarketing()" id="btnMarketing">
+                        <i class="fas fa-bullhorn"></i>
+                        MARKETING
+                    </button>
+                    <button class="core-btn" onclick="sendTestAlert()" id="btnAlert">
+                        <i class="fab fa-whatsapp"></i>
+                        TEST ALERT
+                    </button>
+                </div>
+
+                <!-- Console d'activité -->
+                <div class="activity-console" id="activityConsole">
+                    <div class="console-line">> SYSTEM INITIALIZED...</div>
+                    <div class="console-line">> LOADING AGENTS...</div>
+                    <div class="console-line">> READY FOR COMMANDS</div>
+                </div>
+            </div>
+
+            <!-- PAIEMENT PAYPAL -->
+            <div id="paypal-button-container"></div>
+
+            <!-- FOOTER CONTACT -->
+            <div class="footer-info">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <span>apolo2211@gmail.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>+213 675 13 72 84</span>
+                    </div>
+                </div>
+                
+                <div class="social-links">
+                    <a href="https://www.linkedin.com/in/ouerd-majid-051110a8/" target="_blank" class="social-link">
+                        <i class="fab fa-linkedin-in"></i>
+                    </a>
+                    <a href="#" class="social-link">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="#" class="social-link">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=ATVwnB9TA5YOXK64BPjTQIlS43_eA0mEeotrBnUHmwCliPGpkZGJk5VaFZrJghoukl1lXN2X62R6-zRS&currency=USD"></script>
+    
+    <script>
+        // ========== SCÈNE 3D HOLOGRAPHIQUE ==========
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('canvas-hologram'), 
+            alpha: false,
+            antialias: true 
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // Étoiles
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 2000;
+        const starsPositions = new Float32Array(starsCount * 3);
+        
+        for(let i = 0; i < starsCount * 3; i += 3) {
+            starsPositions[i] = (Math.random() - 0.5) * 200;
+            starsPositions[i+1] = (Math.random() - 0.5) * 200;
+            starsPositions[i+2] = (Math.random() - 0.5) * 200;
+        }
+        
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
+        const starsMaterial = new THREE.PointsMaterial({color: 0xffffff, size: 0.1});
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // Noeud principal
+        const mainGeometry = new THREE.TorusKnotGeometry(8, 2.5, 200, 32);
+        const mainMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x00ffcc,
+            emissive: 0x004433,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.4
+        });
+        const mainKnot = new THREE.Mesh(mainGeometry, mainMaterial);
+        scene.add(mainKnot);
+
+        // Anneaux
+        const ringGeometry = new THREE.TorusGeometry(12, 0.5, 16, 100);
+        const ringMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00aaff, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0.15 
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 2;
+        ring.rotation.z = 0.3;
+        scene.add(ring);
+
+        const ring2 = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring2.rotation.y = Math.PI / 2;
+        ring2.rotation.x = 0.5;
+        scene.add(ring2);
+
+        // Particules
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 500;
+        const particlesPositions = new Float32Array(particlesCount * 3);
+        
+        for(let i = 0; i < particlesCount * 3; i += 3) {
+            const radius = 15 + Math.random() * 5;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI * 2;
+            
+            particlesPositions[i] = radius * Math.sin(theta) * Math.cos(phi);
+            particlesPositions[i+1] = radius * Math.sin(theta) * Math.sin(phi);
+            particlesPositions[i+2] = radius * Math.cos(theta);
+        }
+        
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlesPositions, 3));
+        const particlesMaterial = new THREE.PointsMaterial({ 
+            color: 0x00ffcc, 
+            size: 0.1,
+            transparent: true,
+            opacity: 0.6
+        });
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        // Lumières
+        const light = new THREE.PointLight(0x00ffcc, 1, 50);
+        light.position.set(10, 10, 10);
+        scene.add(light);
+        
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+
+        camera.position.z = 30;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            mainKnot.rotation.x += 0.002;
+            mainKnot.rotation.y += 0.003;
+            ring.rotation.x += 0.001;
+            ring.rotation.y += 0.002;
+            ring2.rotation.x += 0.002;
+            ring2.rotation.y += 0.001;
+            particles.rotation.y += 0.0005;
+            stars.rotation.y += 0.0001;
+            
+            mainMaterial.opacity = 0.3 + Math.sin(Date.now() * 0.002) * 0.1;
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // ========== SYSTÈME DE NOTIFICATIONS ==========
+        function showNotification(message, type = 'info') {
+            const area = document.getElementById('notificationArea');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = message;
+            
+            area.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s forwards';
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+
+        // ========== CONSOLE D'ACTIVITÉ ==========
+        function addConsoleLine(text) {
+            const console = document.getElementById('activityConsole');
+            const line = document.createElement('div');
+            line.className = 'console-line new';
+            line.textContent = '> ' + text;
+            
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+            
+            // Limiter le nombre de lignes
+            while(console.children.length > 8) {
+                console.removeChild(console.firstChild);
+            }
+        }
+
+        // ========== FONCTIONS DU DASHBOARD ==========
+        function startAgent() {
+            addConsoleLine('🚀 LANCEMENT DE L\'AGENT...');
+            showNotification('🤖 Agent marketing activé', 'success');
+            
+            // Simuler un délai d'exécution
+            setTimeout(() => {
+                addConsoleLine('✅ AGENT MARKETING OPÉRATIONNEL');
+                updateStats();
+            }, 1500);
+        }
+
+        function openClients() {
+            addConsoleLine('📊 RÉCUPÉRATION DES STATISTIQUES CLIENTS...');
+            showNotification('📈 Chargement des données clients', 'info');
+            
+            setTimeout(() => {
+                const clients = Math.floor(1200 + Math.random() * 200);
+                document.getElementById('clientCount').textContent = clients.toLocaleString();
+                addConsoleLine(`✅ ${clients} CLIENTS ACTIFS`);
+            }, 1000);
+        }
+
+        function openMarketing() {
+            addConsoleLine('📢 OUVERTURE DU MODULE MARKETING...');
+            showNotification('🎯 Campagne marketing prête', 'warning');
+            
+            setTimeout(() => {
+                addConsoleLine('✅ 3 CAMPAGNES ACTIVES');
+            }, 800);
+        }
+
+        function sendTestAlert() {
+            addConsoleLine('📲 ENVOI ALERTE TEST...');
+            
+            // Simuler l'envoi d'alertes
+            setTimeout(() => {
+                showNotification('📧 Email envoyé à apolo2211@gmail.com', 'success');
+                addConsoleLine('✅ EMAIL ENVOYÉ');
+            }, 1000);
+            
+            setTimeout(() => {
+                showNotification('📱 Notification WhatsApp envoyée au +213675137284', 'success');
+                addConsoleLine('✅ WHATSAPP ENVOYÉ');
+            }, 2000);
+        }
+
+        // ========== SIMULATION STATISTIQUES TEMPS RÉEL ==========
+        function updateStats() {
+            // Mise à jour aléatoire des stats pour simuler du trafic réel
+            const clients = 1247 + Math.floor(Math.random() * 50 - 25);
+            const revenue = 45.2 + (Math.random() * 5 - 2.5);
+            const agents = Math.floor(5 + Math.random() * 3);
+            const alerts = Math.floor(Math.random() * 3);
+            
+            document.getElementById('clientCount').textContent = clients.toLocaleString();
+            document.getElementById('revenue').textContent = '$' + revenue.toFixed(1) + 'K';
+            document.getElementById('agentCount').textContent = agents + '/7';
+            document.getElementById('alertCount').textContent = alerts;
+            
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Mise à jour toutes les 10 secondes
+        setInterval(updateStats, 10000);
+
+        // ========== CONFIGURATION PAYPAL ==========
+        paypal.Buttons({
+            style: { 
+                shape: 'rect', 
+                color: 'blue', 
+                layout: 'vertical', 
+                label: 'pay',
+                height: 35
+            },
+            createOrder: function(data, actions) {
+                addConsoleLine('💳 CRÉATION DE LA TRANSACTION...');
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: { value: '10.00' },
+                        payee: { email_address: 'apolo2211@gmail.com' },
+                        description: "DZ_IA_OUERD - Premium Access"
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                addConsoleLine('✅ VALIDATION DU PAIEMENT...');
+                return actions.order.capture().then(function(details) {
+                    const message = `✅ Paiement validé ! Bienvenue ${details.payer.name.given_name}`;
+                    showNotification(message, 'success');
+                    addConsoleLine(`💰 PAIEMENT RÉUSSI - $10.00`);
+                    addConsoleLine(`👤 CLIENT: ${details.payer.name.given_name}`);
+                    
+                    // Mise à jour des stats après paiement
+                    setTimeout(() => {
+                        updateStats();
+                        addConsoleLine('📊 STATISTIQUES MISES À JOUR');
+                    }, 2000);
+                });
+            },
+            onCancel: function(data) {
+                showNotification('❌ Paiement annulé', 'warning');
+                addConsoleLine('❌ PAIEMENT ANNULÉ');
+            },
+            onError: function(err) {
+                showNotification('⚠️ Erreur de paiement', 'danger');
+                addConsoleLine('⚠️ ERREUR PAIEMENT');
+            }
+        }).render('#paypal-button-container');
+
+        // Animation initiale
+        addConsoleLine('🔧 DASHBOARD PRÊT');
+        addConsoleLine('💡 EN ATTENTE DE COMMANDES');
+        
+        // Simulation d'activité périodique
+        setInterval(() => {
+            if (Math.random() > 0.7) {
+                addConsoleLine('📡 SYNCHRONISATION RÉSEAU...');
+            }
+        }, 15000);
+    </script>
+</body>
+</html>
