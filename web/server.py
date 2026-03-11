@@ -3,7 +3,13 @@ from flask import Flask, render_template, jsonify, request
 from services.paypal_service import PayPalService
 from services.notif_service import send_global_alert
 import os
+from services.marketing_agent import run_marketing_cycle
 
+@app.route('/api/start-agent', methods=['POST'])
+def handle_marketing():
+    # Lance l'agent en arrière-plan
+    count = run_marketing_cycle()
+    return jsonify({"status": "success", "prospects_found": count})
 app = Flask(__name__)
 
 # Initialisation du service PayPal
