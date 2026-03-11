@@ -1,17 +1,34 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template
-import sys
+from flask import Flask, render_template, jsonify, request
+from services.paypal_service import PayPalService
+from services.notif_service import send_global_alert
 import os
 
-# Permet d'importer les modules du dossier parent
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
+app = Flask(__name__)
+paypal = PayPalService()
 
-app = Flask(__name__, template_folder='templates')
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-@app.route("/")
-def home():
-    return render_template("index.html")
+# Route pour créer le paiement
+@app.route('/api/create-order', methods=['POST'])
+def create_order():
+    # On fixe le prix à 49.00 USD pour tes services
+    order = paypal.create_order("49.00")
+    return jsonify(order)
+
+# Route appelée quand le client a fini de payer
+@app.route('/api/capture-order', methods=['POST'])
+def capture_order():
+    order_id = request.json.get('orderID')
+    # On valide le paiement auprès de PayPal
+    # (Tu devras ajouter une fonction capture_payment dans paypal_service)
+    
+    # Alerte immédiate à Ksar El Boukhari
+    send_global_alert("49.00", "Client en attente")
+    return jsonify({"status": "COMPLETED"})
 
 if __name__ == "__main__":
-    print("🌐 Serveur DZ-IA OUERD lancé sur http://127.0.0.1:5000")
-    app.run(port=5000, debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)

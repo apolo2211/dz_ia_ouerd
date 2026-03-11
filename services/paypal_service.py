@@ -1,17 +1,28 @@
 # -*- coding: utf-8 -*-
-from config import PAYPAL_CLIENT_ID
+import requests
+import os
 
 class PayPalService:
     def __init__(self):
-        self.mode = "sandbox"
-        self.client_id = PAYPAL_CLIENT_ID
+        # URL DE PRODUCTION RÉELLE
+        self.base_url = "https://api-m.paypal.com"
+        self.client_id = os.environ.get("PAYPAL_CLIENT_ID")
+        self.secret = os.environ.get("PAYPAL_SECRET")
 
-    def create_payment(self, amount):
-        print(f"💳 [PAYPAL] Initialisation d'une transaction de {amount}$")
-        # Structure de retour simulée pour le frontend
-        return {
-            "status": "created",
-            "amount": amount,
-            "currency": "USD",
-            "client_id": self.client_id
+    def get_access_token(self):
+        res = requests.post(
+            f"{self.base_url}/v1/oauth2/token",
+            auth=(self.client_id, self.secret),
+            data={'grant_type': 'client_credentials'}
+        )
+        return res.json().get('access_token')
+
+    def create_order(self, amount):
+        token = self.get_access_token()
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        payload = {
+            "intent": "CAPTURE",
+            "purchase_units": [{"amount": {"currency_code": "USD", "value": amount}}]
         }
+        res = requests.post(f"{self.base_url}/v2/checkout/orders", json=payload, headers=headers)
+        return res.json()

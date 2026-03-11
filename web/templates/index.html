@@ -547,8 +547,8 @@
                 </div>
             </div>
 
-            <!-- PAIEMENT PAYPAL -->
-            <div id="paypal-button-container"></div>
+            <!-- PAIEMENT PAYPAL AVEC BACKEND -->
+            <div id="paypal-button-container" style="margin-top: 20px;"></div>
 
             <!-- FOOTER CONTACT -->
             <div class="footer-info">
@@ -580,7 +580,9 @@
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://www.paypal.com/sdk/js?client-id=ATVwnB9TA5YOXK64BPjTQIlS43_eA0mEeotrBnUHmwCliPGpkZGJk5VaFZrJghoukl1lXN2X62R6-zRS&currency=USD"></script>
+    
+    <!-- Script PayPal avec template dynamique -->
+    <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_id }}&currency=USD"></script>
     
     <script>
         // ========== SCÈNE 3D HOLOGRAPHIQUE ==========
@@ -798,50 +800,6 @@
         // Mise à jour toutes les 10 secondes
         setInterval(updateStats, 10000);
 
-        // ========== CONFIGURATION PAYPAL ==========
-        paypal.Buttons({
-            style: { 
-                shape: 'rect', 
-                color: 'blue', 
-                layout: 'vertical', 
-                label: 'pay',
-                height: 35
-            },
-            createOrder: function(data, actions) {
-                addConsoleLine('💳 CRÉATION DE LA TRANSACTION...');
-                return actions.order.create({
-                    purchase_units: [{
-                        amount: { value: '10.00' },
-                        payee: { email_address: 'apolo2211@gmail.com' },
-                        description: "DZ_IA_OUERD - Premium Access"
-                    }]
-                });
-            },
-            onApprove: function(data, actions) {
-                addConsoleLine('✅ VALIDATION DU PAIEMENT...');
-                return actions.order.capture().then(function(details) {
-                    const message = `✅ Paiement validé ! Bienvenue ${details.payer.name.given_name}`;
-                    showNotification(message, 'success');
-                    addConsoleLine(`💰 PAIEMENT RÉUSSI - $10.00`);
-                    addConsoleLine(`👤 CLIENT: ${details.payer.name.given_name}`);
-                    
-                    // Mise à jour des stats après paiement
-                    setTimeout(() => {
-                        updateStats();
-                        addConsoleLine('📊 STATISTIQUES MISES À JOUR');
-                    }, 2000);
-                });
-            },
-            onCancel: function(data) {
-                showNotification('❌ Paiement annulé', 'warning');
-                addConsoleLine('❌ PAIEMENT ANNULÉ');
-            },
-            onError: function(err) {
-                showNotification('⚠️ Erreur de paiement', 'danger');
-                addConsoleLine('⚠️ ERREUR PAIEMENT');
-            }
-        }).render('#paypal-button-container');
-
         // Animation initiale
         addConsoleLine('🔧 DASHBOARD PRÊT');
         addConsoleLine('💡 EN ATTENTE DE COMMANDES');
@@ -852,6 +810,104 @@
                 addConsoleLine('📡 SYNCHRONISATION RÉSEAU...');
             }
         }, 15000);
+    </script>
+
+    <!-- ========== SCRIPT PAYPAL AVEC BACKEND ========== -->
+    <!-- Ce script doit être placé juste avant la fermeture de </body> -->
+    <script>
+        // Initialisation de PayPal avec appel au backend
+        paypal.Buttons({
+            // Style du bouton
+            style: {
+                shape: 'rect',
+                color: 'blue',
+                layout: 'vertical',
+                label: 'paypal',
+                height: 40
+            },
+            
+            // Création de la commande via le backend
+            createOrder: function() {
+                addConsoleLine('🔄 Création de la commande...');
+                
+                return fetch('/api/create-order', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur lors de la création de la commande');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    addConsoleLine('✅ Commande créée avec succès');
+                    return data.id; // Retourne l'ID de la commande PayPal
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    showNotification('❌ Erreur de création de commande', 'danger');
+                    addConsoleLine('❌ Échec de création de commande');
+                });
+            },
+            
+            // Validation du paiement via le backend
+            onApprove: function(data) {
+                addConsoleLine('💰 Paiement approuvé, validation en cours...');
+                
+                return fetch('/api/capture-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        orderID: data.orderID 
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur lors de la capture du paiement');
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    // Succès du paiement
+                    showNotification('✅ Paiement réussi ! DZ-IA OUERD commence le travail.', 'success');
+                    addConsoleLine('🎉 PAIEMENT VALIDÉ - Activation des services');
+                    
+                    // Mise à jour des statistiques
+                    updateStats();
+                    
+                    // Rechargement optionnel de la page après 2 secondes
+                    setTimeout(() => {
+                        if (confirm('Paiement réussi ! Voulez-vous rafraîchir le dashboard ?')) {
+                            window.location.reload();
+                        }
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    showNotification('❌ Erreur lors de la validation du paiement', 'danger');
+                    addConsoleLine('❌ ÉCHEC DE LA VALIDATION');
+                });
+            },
+            
+            // Annulation par l'utilisateur
+            onCancel: function(data) {
+                showNotification('❌ Paiement annulé', 'warning');
+                addConsoleLine('❌ PAIEMENT ANNULÉ');
+            },
+            
+            // Erreur générale
+            onError: function(err) {
+                console.error('Erreur PayPal:', err);
+                showNotification('⚠️ Une erreur est survenue', 'danger');
+                addConsoleLine('⚠️ ERREUR SYSTÈME DE PAIEMENT');
+            }
+            
+        }).render('#paypal-button-container'); // Affiche les boutons dans le conteneur
     </script>
 </body>
 </html>
